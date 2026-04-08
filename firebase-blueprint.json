@@ -1,0 +1,68 @@
+{
+  "entities": {
+    "Election": {
+      "title": "Election",
+      "description": "Represents an election event.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the election." },
+        "description": { "type": "string", "description": "A brief description of the election." },
+        "startTime": { "type": "string", "format": "date-time", "description": "When the election starts." },
+        "endTime": { "type": "string", "format": "date-time", "description": "When the election ends." },
+        "isActive": { "type": "boolean", "description": "Whether the election is currently active." }
+      },
+      "required": ["title", "startTime", "endTime"]
+    },
+    "Candidate": {
+      "title": "Candidate",
+      "description": "Represents a candidate in an election.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "The name of the candidate." },
+        "bio": { "type": "string", "description": "A short biography of the candidate." },
+        "electionId": { "type": "string", "description": "The ID of the election the candidate is part of." },
+        "voteCount": { "type": "number", "description": "Total votes received." }
+      },
+      "required": ["name", "electionId"]
+    },
+    "Voter": {
+      "title": "Voter",
+      "description": "Tracks if a user has voted in a specific election.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "The ID of the voter." },
+        "electionId": { "type": "string", "description": "The ID of the election." },
+        "hasVoted": { "type": "boolean", "description": "Whether the user has cast their vote." }
+      },
+      "required": ["userId", "electionId", "hasVoted"]
+    },
+    "Vote": {
+      "title": "Vote",
+      "description": "An anonymized vote record.",
+      "type": "object",
+      "properties": {
+        "electionId": { "type": "string", "description": "The ID of the election." },
+        "candidateId": { "type": "string", "description": "The ID of the candidate voted for." }
+      },
+      "required": ["electionId", "candidateId"]
+    }
+  },
+  "firestore": {
+    "/elections/{electionId}": {
+      "schema": "Election",
+      "description": "Collection of all elections."
+    },
+    "/elections/{electionId}/candidates/{candidateId}": {
+      "schema": "Candidate",
+      "description": "Candidates for a specific election."
+    },
+    "/voters/{voterId}": {
+      "schema": "Voter",
+      "description": "Tracks voting status per user and election. voterId is userId_electionId."
+    },
+    "/votes/{voteId}": {
+      "schema": "Vote",
+      "description": "Anonymized votes collection."
+    }
+  }
+}

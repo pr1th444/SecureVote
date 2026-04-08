@@ -1,0 +1,132 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: elections
+    // Document ID: electionId
+    // Fields:
+    //   - title: string (required)
+    //   - description: string (optional)
+    //   - startTime: timestamp (required)
+    //   - endTime: timestamp (required)
+    //   - isActive: bool (required)
+    //
+    // Collection: elections/{electionId}/candidates
+    // Document ID: candidateId
+    // Fields:
+    //   - name: string (required)
+    //   - bio: string (optional)
+    //   - electionId: string (required)
+    //   - voteCount: number (required)
+    //
+    // Collection: voters
+    // Document ID: userId_electionId
+    // Fields:
+    //   - userId: string (required)
+    //   - electionId: string (required)
+    //   - hasVoted: bool (required)
+    //
+    // Collection: votes
+    // Document ID: auto-generated
+    // Fields:
+    //   - electionId: string (required)
+    //   - candidateId: string (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "pritha.d06@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidElection(data) {
+      return data.keys().hasAll(['title', 'startTime', 'endTime', 'isActive']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.startTime is timestamp &&
+             data.endTime is timestamp &&
+             data.isActive is bool;
+    }
+
+    function isValidCandidate(data) {
+      return data.keys().hasAll(['name', 'electionId', 'voteCount']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.electionId is string &&
+             data.voteCount is number && data.voteCount >= 0;
+    }
+
+    function isValidVoter(data) {
+      return data.keys().hasAll(['userId', 'electionId', 'hasVoted']) &&
+             data.userId == request.auth.uid &&
+             data.electionId is string &&
+             data.hasVoted is bool;
+    }
+
+    function isValidVote(data) {
+      return data.keys().hasAll(['electionId', 'candidateId']) &&
+             data.electionId is string &&
+             data.candidateId is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    match /elections/{electionId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+      
+      match /candidates/{candidateId} {
+        allow read: if isAuthenticated();
+        allow create, delete: if isAdmin();
+        allow update: if isAdmin() || (
+          isAuthenticated() && 
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voteCount']) &&
+          request.resource.data.voteCount == resource.data.voteCount + 1 &&
+          // Ensure voter has not voted yet (consistency check)
+          !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + electionId)) &&
+          getAfter(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + electionId)).data.hasVoted == true
+        );
+      }
+    }
+
+    match /voters/{voterId} {
+      allow read: if isAuthenticated() && (voterId.startsWith(request.auth.uid) || isAdmin());
+      allow create: if isAuthenticated() && 
+                      voterId == request.auth.uid + '_' + request.resource.data.electionId &&
+                      isValidVoter(request.resource.data) &&
+                      request.resource.data.hasVoted == true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /votes/{voteId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && 
+                      isValidVote(request.resource.data) &&
+                      // Ensure voter has not voted yet
+                      !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + request.resource.data.electionId)) &&
+                      getAfter(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + request.resource.data.electionId)).data.hasVoted == true;
+    }
+  }
+}
