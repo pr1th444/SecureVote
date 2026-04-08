@@ -374,9 +374,12 @@ const ElectionCard = ({ election, isAdmin }: ElectionCardProps) => {
     setIsVoting(true);
     try {
       const batch = writeBatch(db);
-      const voterRef = doc(db, 'voters', `${user.uid}_${election.id}`);
+      const voterId = `${user.uid}_${election.id}`;
+      const voterRef = doc(db, 'voters', voterId);
       const candidateRef = doc(db, `elections/${election.id}/candidates`, candidateId);
       const voteRef = doc(collection(db, 'votes'));
+
+      console.log('Attempting to vote:', { voterId, candidateId, electionId: election.id });
 
       batch.set(voterRef, {
         userId: user.uid,
@@ -394,8 +397,16 @@ const ElectionCard = ({ election, isAdmin }: ElectionCardProps) => {
       });
 
       await batch.commit();
+      console.log('Vote committed successfully');
       setHasVoted(true);
-    } catch (err) {
+    } catch (err: any) {
+      console.error('Detailed Vote Error:', err);
+      // Check for specific permission errors
+      if (err.message && err.message.includes('permission')) {
+        alert('Permission Denied: You might have already voted or the election is closed. Check console for details.');
+      } else {
+        alert(`Voting failed: ${err.message || 'Unknown error'}`);
+      }
       handleFirestoreError(err, OperationType.WRITE, 'voting_transaction');
     } finally {
       setIsVoting(false);
@@ -702,8 +713,13 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signIn = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Sign in error:', err);
+      if (err.code === 'auth/unauthorized-domain') {
+        alert(`Domain Unauthorized: Please add "${window.location.hostname}" to your Firebase Console > Authentication > Settings > Authorized domains.`);
+      } else {
+        alert(`Sign-in failed: ${err.message}`);
+      }
     }
   };
 

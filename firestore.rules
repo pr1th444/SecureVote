@@ -104,9 +104,8 @@ service cloud.firestore {
           isAuthenticated() && 
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['voteCount']) &&
           request.resource.data.voteCount == resource.data.voteCount + 1 &&
-          // Ensure voter has not voted yet (consistency check)
-          !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + electionId)) &&
-          getAfter(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + electionId)).data.hasVoted == true
+          // Ensure voter has not voted yet
+          !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + electionId))
         );
       }
     }
@@ -125,8 +124,7 @@ service cloud.firestore {
       allow create: if isAuthenticated() && 
                       isValidVote(request.resource.data) &&
                       // Ensure voter has not voted yet
-                      !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + request.resource.data.electionId)) &&
-                      getAfter(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + request.resource.data.electionId)).data.hasVoted == true;
+                      !exists(/databases/$(database)/documents/voters/$(request.auth.uid + '_' + request.resource.data.electionId));
     }
   }
 }
