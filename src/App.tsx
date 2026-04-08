@@ -3,7 +3,8 @@ import {
   auth, 
   db, 
   googleProvider, 
-  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
   signOut, 
   onAuthStateChanged, 
   User,
@@ -684,6 +685,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Handle redirect result
+    getRedirectResult(auth).catch((err) => {
+      console.error('Redirect auth error:', err);
+    });
+
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       if (u) {
@@ -712,14 +718,11 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signIn = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      console.log('Starting Google Sign-In with Redirect...');
+      await signInWithRedirect(auth, googleProvider);
     } catch (err: any) {
-      console.error('Sign in error:', err);
-      if (err.code === 'auth/unauthorized-domain') {
-        alert(`Domain Unauthorized: Please add "${window.location.hostname}" to your Firebase Console > Authentication > Settings > Authorized domains.`);
-      } else {
-        alert(`Sign-in failed: ${err.message}`);
-      }
+      console.error('Sign in trigger error:', err);
+      alert(`Sign-in failed: ${err.message}`);
     }
   };
 
