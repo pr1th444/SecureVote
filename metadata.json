@@ -1,5 +1,5 @@
 {
-  "name": "SecureVote",
+  "name": "Secure Vote",
   "description": "A secure, reliable, and efficient online voting system with real-time results, voter anonymization, and duplicate prevention.",
   "requestFramePermissions": []
 }
